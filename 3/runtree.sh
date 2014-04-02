@@ -1,5 +1,4 @@
 #!/bin/bash
 
 mpicc tree.c
-mpirun a.out -np 8
-rm a.out
+mpirun -np 8  a.out  && rm a.out

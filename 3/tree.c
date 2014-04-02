@@ -19,7 +19,9 @@ int main(int argc, char **argv)
 
 	//begin tree barrier.
 	//First level.  If node is odd, send to node - 1, then wait.
-	
+	if(myid == 0){
+		printf("Tree barrier reached, entering tree code.\n");
+	}
 	if(myid % 2 == 1){
 		MPI_Send(&data, 1, MPI_INT, myid-1, 0, MPI_COMM_WORLD);
 		MPI_Recv(&data, 1, MPI_INT, myid-1, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -52,17 +54,19 @@ int main(int argc, char **argv)
 	//barrier has been achieved, pass alert back down tree.
 	
 	if(myid % 8 == 0){
-		MPISend(&data, 1, MPI_INT, myid + 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Send(&data, 1, MPI_INT, myid + 4, 0, MPI_COMM_WORLD);
 	
 	}
 	if(myid % 4 == 0){
-		MPISend(&data, 1, MPI_INT, myid + 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Send(&data, 1, MPI_INT, myid + 2, 0, MPI_COMM_WORLD);
 	}
 	if(myid % 2 == 0){
-		MPISend(&data, 1, MPI_INT, myid + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Send(&data, 1, MPI_INT, myid + 1, 0, MPI_COMM_WORLD);
 	}
 
-
+	if(myid == 0){
+		printf("Tree barrier completed, resuming node code on all nodes.\n");
+	}
 	MPI_Finalize();
 	return 0;
 }
