@@ -55,9 +55,11 @@ int main(int argc, char **argv)
 		MPISend(&data, 1, MPI_INT, myid + 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
 	}
-	else{
-
-		if(myid 
+	if(myid % 4 == 0){
+		MPISend(&data, 1, MPI_INT, myid + 2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	}
+	if(myid % 2 == 0){
+		MPISend(&data, 1, MPI_INT, myid + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	}
 
 
