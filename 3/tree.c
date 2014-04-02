@@ -48,6 +48,19 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+
+	//barrier has been achieved, pass alert back down tree.
+	
+	if(myid % 8 == 0){
+		MPISend(&data, 1, MPI_INT, myid + 4, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	
+	}
+	else{
+
+		if(myid 
+	}
+
+
 	MPI_Finalize();
 	return 0;
 }
