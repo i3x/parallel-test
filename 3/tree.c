@@ -4,9 +4,6 @@
 #include<stdlib.h>
 #include <string.h>
 
-#define PIPELINE 0
-#define POWER 16
-
 int main(int argc, char **argv)
 {
 	int myid, numprocs;
