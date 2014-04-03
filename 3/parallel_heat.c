@@ -2,6 +2,9 @@
 # include <stdio.h>
 # include <math.h>
 # include <time.h>
+# include <mpi.h>
+# include<stdlib.h>
+# include <string.h>
 
 int main ( int argc, char *argv[] );
 double cpu_time ( void );
@@ -108,10 +111,19 @@ int main ( int argc, char *argv[] )
   int success;
   double u[M][N];
   double w[M][N];
+  int myid,numprocs;
 
 
-  int myid,numprocs
 
+  MPI_Init(&argc,&argv);
+  MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD,&myid);
+
+  double g[N/numprocs + 2][M];
+  double h[N/numprocs + 2][M];
+
+
+if(myid == 0){
   printf ( "\n" );
   printf ( "HEATED_PLATE\n" );
   printf ( "  A program to solve for the steady state temperature distribution\n" );
@@ -219,18 +231,30 @@ int main ( int argc, char *argv[] )
     }
   }
 
-//START PARALLEL
-MPI_Init(&argc,&argv);
-MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
-MPI_Comm_rank(MPI_COMM_WORLD,&myid);
+  for(i=0;i < numprocs;i++){
+  	MPI_Send(&w[i * N/numprocs][0], M * N/numprocs , MPI_FLOAT, i, 0, MPI_COMM_WORLD);
+	printf("proc 0 sent to id %d\n",i);
+  }
+  
+}
+printf("process: %d receiving and beginning memcpy\n",myid);
+MPI_Recv(h[1], M*N/numprocs, MPI_FLOAT, 0, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+memcpy(h[0],h[1], M * sizeof(float));
+memcpy(h[N/numprocs+2],h[N/numprocs+1], M * sizeof(float));
 
-double g[N][M];
-double h[N][M];
+printf("process: %d, after memcpy\n", myid);
+
+MPI_Barrier(MPI_COMM_WORLD);
+printf("myid: %d, values %f,%f,%f,%f\n",myid,h[0][0],h[1][0],h[2][0],h[3][0]);
+
+//START PARALLEL
+//double g[N/numprocs + 2][M];
+//double h[N/numprocs + 2][M];
 
 
 int k = 1;
 for (k = 1; k <= N/numprocs; k++){
-	for(j = 1; j <=M; j++){
+	for(j = 0; j <M; j++){
 		g[k][j] = 0.25 * (h[k-1][j] + h[k+1][j] + h[k][j-1] + h[k][j+1]);
 	}
 
@@ -242,18 +266,18 @@ for (k=1; k < N/numprocs; k++){
 	}
 }
 
-
-send(&g[1][1], n, myid -1);
+//send INNER top and bottom rows to neighbors.
+send(&g[1][1], M, myid -1);
 send(&g[N/numprocs][1], M, myid + 1);
-recv(&h[0][1], n, myid -1);
+//recv rows from neighbors and store in OUTER (ghost) rows.
+recv(&h[0][1], M, myid -1);
 recv(&h[N/numprocs+1][1], M, myid + 1);
 
 
-MPI_Finalize();
-return 0;
-//END PARALLEL
 
 
+
+if(myid == 0){
 /* 
   Write the solution to the output file.
 */
@@ -281,7 +305,10 @@ return 0;
   printf ( "HEATED_PLATE:\n" );
   printf ( "  Normal end of execution.\n" );
 
-  return 0;
+}
+MPI_Finalize();
+return 0;
+//END PARALLEL
 
 # undef M
 # undef N
