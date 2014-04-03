@@ -112,7 +112,6 @@ int main ( int argc, char *argv[] )
   double u[M][N];
   double w[M][N];
   int myid,numprocs;
-  double min = 1000;
 
 
   MPI_Init(&argc,&argv);
@@ -121,7 +120,7 @@ int main ( int argc, char *argv[] )
 
   double g[N/numprocs + 2][M];
   double h[N/numprocs + 2][M];
-
+  double min=1000;
 
 if(myid == 0){
   printf ( "\n" );
@@ -255,10 +254,17 @@ diff = 0.0;
 
 int k = 1;
 for (k = 1; k <= N/numprocs; k++){
-	for(j = 0; j <M; j++){
-		g[k][j] = 0.25 * (h[k-1][j] + h[k+1][j] + h[k][j-1] + h[k][j+1]);
+	double n = h[k-1][j];
+	double s = h[k+1][j];
+	double e = h[k][j+1];
+	double w = h[k][j-1];
+	for(j = 0; j < M; j++){
+		g[k][j] = 0.25 * (n + e + w + s);
 		if(diff < fabs(g[k][j] - h[k][j])){
-			diff = fabs(g[k][j] - h[k][j]);	
+			diff = fabs(g[k][j] - h[k][j]);
+			if(diff > 1000){
+				printf("myid = %d, diff = %f\n, k=%d, j=%d",myid,diff,k,j);
+	}	
 		}
 	}
 
@@ -271,30 +277,51 @@ for (k=1; k < N/numprocs; k++){
 }
 
 //send INNER top and bottom rows to neighbors.
-send(&g[1][1], M, myid -1);
-send(&g[N/numprocs][1], M, myid + 1);
-send(&diff, 1, 0); 
-//recv rows from neighbors and store in OUTER (ghost) rows.
-recv(&h[0][1], M, myid -1);
-recv(&h[N/numprocs+1][1], M, myid + 1);
+if(myid != 0){
+MPI_Send(&g[1][1], M, MPI_DOUBLE, myid-1, 0, MPI_COMM_WORLD);
+}
+if(myid != numprocs-1){
+MPI_Send(&g[N/numprocs], M, MPI_DOUBLE, myid+1, 0, MPI_COMM_WORLD);
 
+}
+
+MPI_Send(&diff, 1, MPI_FLOAT, 0, 1, MPI_COMM_WORLD);
+
+//recv rows from neighbors and store in OUTER (ghost) rows.
+//recv(&h[0][1], M, myid -1);
+//recv(&h[N/numprocs+1][1], M, myid + 1)
+if(myid != 0){
+MPI_Recv(&h[0][1], M, MPI_DOUBLE, myid -1, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+}
+if(myid != numprocs -1){
+MPI_Recv(h[N/numprocs+1], M, MPI_DOUBLE, myid+1, 0, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+}
 if(myid == 0){
+	int first = 1;
 	float temp = 0.0;
 	for(i = 0; i < numprocs; i++){
-		recv(&temp,1,i);
-		if(temp < diff){
+		///recv(&temp,1,i);
+		MPI_Recv(&temp, 1, MPI_DOUBLE, i, 1, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		if(temp > diff && temp < 1){
+
+			printf("best diff is id:%d\n", i);
 			diff = temp;
+			if(diff < -10000 || diff > 10000 && first == 1){
+				printf("Saw an abnormal diff %f from id: %d\n",diff,i);
+				first = 0;
+			}
 		}
 	}
 	
 	for(i = 0; i < numprocs; i++){
 		printf("sending best diff of %f min: %f and ep: %f \n",diff, min, epsilon);
-		send(&diff, 1, i);
+		//send(&diff, 1, i);
+		MPI_Send(&diff, 1, MPI_DOUBLE, i, 3, MPI_COMM_WORLD);
+
 	}
 }
 
-recv(&min, 1, 0);
-
+MPI_Recv(&min, 1, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 }
 
 
