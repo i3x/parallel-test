@@ -112,7 +112,7 @@ int main ( int argc, char *argv[] )
   double u[M][N];
   double w[M][N];
   int myid,numprocs;
-
+  double min = 1000;
 
 
   MPI_Init(&argc,&argv);
@@ -250,12 +250,16 @@ printf("myid: %d, values %f,%f,%f,%f\n",myid,h[0][0],h[1][0],h[2][0],h[3][0]);
 //START PARALLEL
 //double g[N/numprocs + 2][M];
 //double h[N/numprocs + 2][M];
-
+while ( epsilon <= min){
+diff = 0.0;
 
 int k = 1;
 for (k = 1; k <= N/numprocs; k++){
 	for(j = 0; j <M; j++){
 		g[k][j] = 0.25 * (h[k-1][j] + h[k+1][j] + h[k][j-1] + h[k][j+1]);
+		if(diff < fabs(g[k][j] - h[k][j])){
+			diff = fabs(g[k][j] - h[k][j]);	
+		}
 	}
 
 }
@@ -269,12 +273,29 @@ for (k=1; k < N/numprocs; k++){
 //send INNER top and bottom rows to neighbors.
 send(&g[1][1], M, myid -1);
 send(&g[N/numprocs][1], M, myid + 1);
+send(&diff, 1, 0); 
 //recv rows from neighbors and store in OUTER (ghost) rows.
 recv(&h[0][1], M, myid -1);
 recv(&h[N/numprocs+1][1], M, myid + 1);
 
+if(myid == 0){
+	float temp = 0.0;
+	for(i = 0; i < numprocs; i++){
+		recv(&temp,1,i);
+		if(temp < diff){
+			diff = temp;
+		}
+	}
+	
+	for(i = 0; i < numprocs; i++){
+		printf("sending best diff of %f min: %f and ep: %f \n",diff, min, epsilon);
+		send(&diff, 1, i);
+	}
+}
 
+recv(&min, 1, 0);
 
+}
 
 
 if(myid == 0){
